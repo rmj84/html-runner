@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Ultimate Mobile Code Playground</title>
+    <style>
+        :root {
+            --bg-main: #121214;
+            --bg-editor: #1e1e24;
+            --border-color: #2a2d35;
+            --accent-blue: #3b82f6;
+            --text-main: #ffffff;
+            --text-sub: #9ca3af;
+            --tab-html: #ff5722;
+            --tab-css: #2196f3;
+            --tab-js: #ffeb3b;
+            --tab-kotlin: #7f52ff;
+            --tab-xml: #3ddc84;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            touch-action: manipulation;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 상단 네비게이션 고정 레이어 */
+        .top-navigation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            background-color: var(--bg-main);
+        }
+
+        header {
+            height: 50px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            padding-top: env(safe-area-inset-top);
+        }
+
+        header h1 { font-size: 15px; font-weight: 600; }
+
+        .run-btn {
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            transition: all 0.2s;
+        }
+        
+        .run-btn:disabled {
+            background-color: #4b5563;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* 모바일용 가로 스크롤 터치 탭 바 */
+        .tab-bar {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab-bar::-webkit-scrollbar { display: none; }
+
+        .tab-btn {
+            flex: 0 0 auto;
+            background: none;
+            border: none;
+            color: var(--text-sub);
+            padding: 12px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            position: relative;
+        }
+
+        .tab-btn.active { color: var(--text-main); }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 15%;
+            width: 70%;
+            height: 3px;
+            border-radius: 3px 3px 0 0;
+        }
+
+        .tab-btn[data-tab="html"].active::after { background-color: var(--tab-html); }
+        .tab-btn[data-tab="css"].active::after { background-color: var(--tab-css); }
+        .tab-btn[data-tab="js"].active::after { background-color: var(--tab-js); }
+        .tab-btn[data-tab="kotlin"].active::after { background-color: var(--tab-kotlin); }
+        .tab-btn[data-tab="xml"].active::after { background-color: var(--tab-xml); }
+        .tab-btn[data-tab="result"].active::after { background-color: var(--accent-blue); }
+
+        /* 고정 헤더 높이 확보 */
+        .content-container {
+            flex: 1;
+            margin-top: 92px; 
+            position: relative;
+            background-color: var(--bg-editor);
+            height: calc(100vh - 92px);
+        }
+
+        .panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+        }
+
+        .panel.active { display: flex; }
+
+        textarea {
+            width: 100%;
+            height: 100%;
+            flex: 1;
+            background-color: var(--bg-editor);
+            color: #e2e8f0;
+            border: none;
+            padding: 16px;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+            tab-size: 4;
+            -moz-tab-size: 4;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background-color: #ffffff;
+        }
+
+        footer {
+            padding-bottom: env(safe-area-inset-bottom);
+            background-color: var(--bg-main);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-navigation">
+        <header>
+            <h1>Ultimate Runner</h1>
+            <button class="run-btn" id="run-button" onclick="runPipeline()">실행 (Run)</button>
+        </header>
+
+        <div class="tab-bar" id="main-tab-bar">
+            <button class="tab-btn active" data-tab="html">HTML</button>
+            <button class="tab-btn" data-tab="css">CSS</button>
+            <button class="tab-btn" data-tab="js">JS</button>
+            <button class="tab-btn" data-tab="kotlin">Kotlin</button>
+            <button class="tab-btn" data-tab="xml">Android XML</button>
+            <button class="tab-btn" data-tab="result">RESULT</button>
+        </div>
+    </div>
+
+    <div class="content-container">
+        <div class="panel active" id="panel-html">
+            <textarea id="code-html" placeholder="<!-- HTML 코드를 입력하세요 -->&#10;<div id='web-root'>&#10;  <h1>Web & Mobile Playground</h1>&#10;</div>" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"></textarea>
+        </div>
+        <div class="panel" id="panel-css">
+            <textarea id="code-css" placeholder="/* CSS 코드를 입력하세요 */&#10;body { padding: 16px; font-family: sans-serif; }\n#web-root { text-align: center; color: #3b82f6; }" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"></textarea>
+        </div>
+        <div class="panel" id="panel-js">
+            <textarea id="code-js" placeholder="// JavaScript 코드를 입력하세요&#10;console.log('Web Module Active');" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"></textarea>
+        </div>
+
+        <div class="panel" id="panel-kotlin">
+            <textarea id="code-kotlin" placeholder="// Kotlin 소스코드를 입력하세요" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off">fun main() {
+    println("Hello, Kotlin World!")
+    val numbers = listOf(1, 2, 3, 4, 5)
+    println("필터링 결과: \${numbers.filter { it % 2 == 0 }}")
+}</textarea>
+        </div>
+
+        <div class="panel" id="panel-xml">
+            <textarea id="code-xml" placeholder="<!-- Android Layout XML을 입력하세요 -->" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"><LinearLayout
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="20dp"
+    android:background="#f8fafc">
+
+    <TextView
+        android:text="네이티브 안드로이드 컴포넌트"
+        android:textColor="#1e293b"
+        android:textSize="18sp"/>
+
+    <Button
+        android:text="디바이스 액션 버튼"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+</LinearLayout></textarea>
+        </div>
+
+        <div class="panel" id="panel-result">
+            <iframe id="output-view" sandbox="allow-scripts allow-modals"></iframe>
+        </div>
+    </div>
+
+    <footer></footer>
+
+<script>
+    // 1. 이벤트 위임 기반 탭 컨트롤러
+    const tabBar = document.getElementById('main-tab-bar');
+    tabBar.addEventListener('click', (e) => {
+        const button = e.target.closest('.tab-btn');
+        if (!button) return;
+
+        const targetTab = button.getAttribute('data-tab');
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));
+        document.getElementById(`panel-${targetTab}`).classList.add('active');
+    });
+
+    // 2. Android XML 가상 파서 알고리즘
+    function parseAndroidLayout(xmlString) {
+        if (!xmlString.trim()) return '';
+        try {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+            if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
+                return `<div style="color:#ef4444; padding:12px; background:#fee2e2; border-radius:8px; font-family:monospace; font-size:13px; margin-bottom:16px;">[Android XML Parsing Error] 구조가 올바르지 않습니다.</div>`;
+            }
+
+            function convertNode(node) {
+                if (node.nodeType !== 1) return '';
+                let styles = ['box-sizing:border-box'];
+                let innerContent = '';
+
+                for (let i = 0; i < node.attributes.length; i++) {
+                    let attr = node.attributes[i];
+                    if (attr.name === "android:orientation") styles.push(attr.value === "vertical" ? "display:flex; flex-direction:column" : "display:flex; flex-direction:row");
+                    if (attr.name === "android:layout_width") styles.push(attr.value === "match_parent" ? "width:100%" : "width:auto");
+                    if (attr.name === "android:layout_height") styles.push(attr.value === "match_parent" ? "height:100%" : "height:auto");
+                    if (attr.name === "android:padding") styles.push(`padding:${attr.value.replace("dp", "px").replace("sp", "px")}`);
+                    if (attr.name === "android:background") styles.push(`background:${attr.value}`);
+                    if (attr.name === "android:textColor") styles.push(`color:${attr.value}`);
+                    if (attr.name === "android:textSize") styles.push(`font-size:${attr.value.replace("sp", "px").replace("dp", "px")}`);
+                    if (attr.name === "android:text") innerContent = attr.value;
+                }
+
+                let htmlTag = 'div';
+                if (node.tagName === "LinearLayout") { 
+                    htmlTag = 'div'; 
+                    if(!styles.some(s => s.includes('display:flex'))) styles.push('display:flex; flex-direction:row'); 
+                }
+                else if (node.tagName === "TextView") { htmlTag = 'p'; styles.push('margin:4px 0; font-family:-apple-system,sans-serif;'); }
+                else if (node.tagName === "Button") { htmlTag = 'button'; styles.push('padding:10px 16px; border-radius:8px; border:none; background:#6200EE; color:white; font-weight:bold; margin-top:8px; cursor:pointer;'); }
+
+                let childHtml = '';
+                for (let child of node.childNodes) { childHtml += convertNode(child); }
+                return `<${htmlTag} style="${styles.join(';')}">${innerContent}${childHtml}</${htmlTag}>`;
+            }
+
+            return `
+                <div style="background:#f1f5f9; padding:12px; border-radius:12px; margin-bottom:20px; font-family:sans-serif;">
+                    <div style="font-size:11px; color:#64748b; font-weight:bold; margin-bottom:8px; letter-spacing:1px;">📱 ANDROID XML RENDER PREVIEW</div>
+                    ${convertNode(xmlDoc.documentElement)}
+                </div>
+            `;
+        } catch (e) {
+            return `<div style="color:#ef4444;">[XML Exception] ${e.message}</div>`;
+        }
+    }
+
+    // 3. 비동기 멀티 파이프라인 통합 컴파일러 및 정밀 에러 트래킹 핸들러
+    async function runPipeline() {
+        const runBtn = document.getElementById('run-button');
+        const iframe = document.getElementById('output-view');
+        
+        const htmlCode = document.getElementById('code-html').value;
+        const cssCode = document.getElementById('code-css').value;
+        const jsCode = document.getElementById('code-js').value;
+        const kotlinCode = document.getElementById('code-kotlin').value;
+        const xmlCode = document.getElementById('code-xml').value;
+
+        runBtn.disabled = true;
+        runBtn.innerText = "Compiling...";
+
+        let kotlinConsoleResult = "Kotlin 소스 코드가 비어있습니다.";
+        
+        if (kotlinCode.trim()) {
+            try {
+                const response = await fetch("https://play.kotlinlang.org/api/v1/compiler/run", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        args: "",
+                        files: [{ name: "Main.kt", text: kotlinCode, publicId: "" }],
+                        confType: "java"
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP 상태 에러: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                if (data.errors && Object.keys(data.errors).length > 0) {
+                    kotlinConsoleResult = `<span style="color:#ef4444;">[Kotlin Compile Error]\n` + JSON.stringify(data.errors) + `</span>`;
+                } else {
+                    kotlinConsoleResult = data.text.replace(/<out>/g, "").replace(/<\/out>/g, "");
+                }
+            } catch (err) {
+                // 📌 CORS 및 로컬 실행 환경(Protocol) 검증 예외 피드백 구체화
+                const isLocalFile = window.location.protocol === 'file:';
+                kotlinConsoleResult = `
+<span style="color:#f87171; font-weight:bold;">[Network / CORS Error] 컴파일러 서버 통신 실패</span>
+<span style="color:#94a3b8; display:block; margin-top:8px; font-size:12px; line-height:1.6;">
+${isLocalFile ? 
+  `• <b>원인:</b> 현재 파일을 로컬 컴퓨터에서 직접 더블클릭(<span style="color:#f43f5e">file://</span>)하여 실행했기 때문에 브라우저 보안 정책(CORS)이 API 요청을 차단했습니다.<br>• <b>해결책:</b> VS Code의 <b>Live Server</b> 확장 프로그램을 사용하거나 로컬 웹 서버 환경(Node.js, Python server 등)에서 <span style="color:#38bdf8">http://localhost</span> 주소로 접속해 실행하세요.` : 
+  `• <b>원인:</b> 외부 Kotlin 컴파일 서버의 일시적인 먹통이거나 원격 오리진 요청 차단 정책 때문입니다.<br>• <b>해결책:</b> 인터넷 연결 상태를 확인하거나 잠시 후 다시 시도해 주세요.`}
+</span>`;
+            }
+        }
+
+        const parsedAndroidXml = parseAndroidLayout(xmlCode);
+
+        const combinedSource = `
+            <!DOCTYPE html>
+            <html lang="ko">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    ${cssCode}
+                    .kotlin-terminal { background:#0f172a; color:#38bdf8; padding:14px; border-radius:12px; font-family:monospace; font-size:13px; white-space:pre-wrap; margin-top:20px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); border:1px solid #1e293b; }
+                    .kotlin-terminal-title { color:#94a3b8; font-size:11px; font-weight:bold; margin-bottom:6px; letter-spacing:1px; }
+                </style>
+            </head>
+            <body>
+                ${parsedAndroidXml}
+                ${htmlCode}
+                <div class="kotlin-terminal">
+                    <div class="kotlin-terminal-title">💻 KOTLIN JVM CONSOLE OUTPUT</div>
+                    <div>${kotlinConsoleResult}</div>
+                </div>
+                <script>
+                    window.onerror = function(message, source, lineno) {
+                        const errDiv = document.createElement('div');
+                        errDiv.style = 'position:fixed; bottom:0; left:0; width:100%; background:#fee2e2; color:#dc2626; padding:12px; font-size:12px; font-family:monospace; border-top:1px solid #fca5a5; z-index:99999;';
+                        errDiv.innerText = '[JS Web Error] ' + message + ' (Line: ' + lineno + ')';
+                        document.body.appendChild(errDiv);
+                        return false;
+                    };
+                    try {
+                        ${jsCode}
+                    } catch(err) {
+                        window.onerror(err.message, null, 0);
+                    }
+                <\/script>
+            </body>
+            </html>
+        `;
+
+        iframe.srcdoc = combinedSource;
+        runBtn.disabled = false;
+        runBtn.innerText = "실행 (Run)";
+        
+        const resultTabButton = document.querySelector('.tab-btn[data-tab="result"]');
+        if (resultTabButton) resultTabButton.click();
+    }
+</script>
+</body>
+</html>
